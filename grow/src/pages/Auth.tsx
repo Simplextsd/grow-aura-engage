@@ -18,8 +18,10 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      // Backend (server.js) se connection
-      const response = await fetch("http://localhost:5000/login", {
+      // Backend connection: Ye local par localhost use karega aur Vercel par apka online URL
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      
+      const response = await fetch(`${apiUrl}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password: password.trim() }),
@@ -52,7 +54,7 @@ export default function Auth() {
       }
     } catch (error: any) {
       setLoading(false);
-      toast({ title: "Error", description: "Server connection failed. Make sure server is running on port 5000", variant: "destructive" });
+      toast({ title: "Error", description: "Server connection failed. Please check your internet or server status.", variant: "destructive" });
     }
   };
 
