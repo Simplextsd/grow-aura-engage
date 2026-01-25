@@ -43,9 +43,6 @@ export default function Dashboard() {
           revenueGrowth: `+${rGrowth}%`
         }));
       }
-
-      // 2. 🔹 Fetching Hotels Count (Pehle yahan Packages tha)
-      // Note: Make sure aapka backend endpoint '/api/hotels/all' ho
       const hotelRes = await fetch("http://localhost:5000/api/hotels/all", { headers });
       const hotelData = await hotelRes.json();
 
@@ -56,8 +53,8 @@ export default function Dashboard() {
 
         setStats(prev => ({
           ...prev,
-          totalHotels: currentHotels, // 🔹 Corrected variable
-          hotelGrowth: `+${hGrowth}%` // 🔹 Updated percentage name
+          totalHotels: currentHotels, 
+          hotelGrowth: `+${hGrowth}%` 
         }));
       }
 
