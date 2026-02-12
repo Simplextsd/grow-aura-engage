@@ -41,7 +41,7 @@ export default function Tasks() {
       const newStatus = currentStatus === "completed" ? "pending" : "completed";
       const { error } = await supabase
         .from("tasks")
-        .update({ 
+        .update({
           status: newStatus,
           completed_at: newStatus === "completed" ? new Date().toISOString() : null
         })

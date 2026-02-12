@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import axios from "axios"; 
+import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, DollarSign, FileText, Loader2, Calendar, User, Info, Eye } from "lucide-react"; 
+import { Plus, DollarSign, FileText, Loader2, Calendar, User, Info, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import CreateInvoiceDialog from "@/components/CreateInvoiceDialog";
@@ -26,14 +26,14 @@ export default function Invoices() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      // ✅ Sahi Port (5000) use ho raha hai
+
       const response = await axios.get(`${BACKEND_URL}/api/invoices`);
       setInvoices(response.data || []);
     } catch (error: any) {
       console.error("Fetch Error:", error);
       toast({
         title: "Connection Error",
-        description: "Backend (Port 5000) se rabta nahi ho pa raha. Check karein ke server on hai?",
+        description: "Backend  se rabta nahi ho pa raha.?",
         variant: "destructive",
       });
     } finally {
@@ -64,7 +64,7 @@ export default function Invoices() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#020617] text-white">
         <Loader2 className="h-10 w-10 animate-spin text-orange-500 mb-4" />
-        <p className="text-slate-400 animate-pulse font-medium">Connecting to Backend on Port 5000...</p>
+        <p className="text-slate-400 animate-pulse font-medium">Connecting to Backend</p>
       </div>
     );
   }
@@ -77,21 +77,21 @@ export default function Invoices() {
           <p className="text-sm text-slate-400 ">Tracking your business growth</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          {/* <Button
+            variant="outline"
             size="sm"
-            onClick={() => navigate("/invoice-templates")} 
+            onClick={() => navigate("/invoice-templates")}
             className="border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-white"
           >
             <FileText className="h-4 w-4 mr-2" /> Templates
-          </Button>
+          </Button> */}
 
           {/* 🔹 Yeh Dialog box data save karta hai, iska code alag file mein hoga */}
-          <CreateInvoiceDialog 
-            onSuccess={fetchInvoices} 
+          <CreateInvoiceDialog
+            onSuccess={fetchInvoices}
             trigger={
               <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg">
-                <Plus className="h-4 w-4 mr-2" /> New Invoice
+                <Plus className="h-4 w-4 mr-2" /> New Booking
               </Button>
             }
           />
@@ -143,12 +143,12 @@ export default function Invoices() {
         <CardContent className="p-0">
           <div className="divide-y divide-slate-800">
             {invoices.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">No data found in MySQL.</div>
+              <div className="p-12 text-center text-slate-500">No data found .</div>
             ) : (
               invoices.map((invoice) => (
-                <div 
-                  key={invoice.id} 
-                  onClick={() => setSelectedInvoice(invoice)} 
+                <div
+                  key={invoice.id}
+                  onClick={() => setSelectedInvoice(invoice)}
                   className="p-5 hover:bg-slate-800/40 transition-colors cursor-pointer group flex items-center justify-between"
                 >
                   <div className="space-y-2">
@@ -184,7 +184,7 @@ export default function Invoices() {
               <Info className="h-5 w-5" /> Invoice Summary
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4 text-sm">
             <div className="grid grid-cols-2 gap-y-4">
               <div>
@@ -209,14 +209,14 @@ export default function Invoices() {
               <p className="text-[10px] text-slate-500 uppercase font-black mb-1">Items / Notes</p>
               <div className="text-xs text-slate-400 leading-relaxed bg-slate-900/50 p-2 rounded italic">
                 {selectedInvoice?.items_json ? (
-                    <p>JSON Data: {selectedInvoice.items_json.substring(0, 50)}...</p>
+                  <p>JSON Data: {selectedInvoice.items_json.substring(0, 50)}...</p>
                 ) : (
-                    <p>{selectedInvoice?.notes || "No additional information provided."}</p>
+                  <p>{selectedInvoice?.notes || "No additional information provided."}</p>
                 )}
               </div>
             </div>
           </div>
-          
+
           <Button onClick={() => setSelectedInvoice(null)} className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-800">
             Close View
           </Button>

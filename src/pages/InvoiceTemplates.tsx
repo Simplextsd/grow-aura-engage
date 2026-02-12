@@ -9,10 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom"; // 🔹 Navigation ke liye import add kiya
-// import { useNavigate } from "react-router-dom"; // Line 12 approx
-// const navigate = useNavigate(); // Component ke andar sabse upar
-// 🔹 20 Professional Templates ki list
+import { useNavigate } from "react-router-dom";
+
 const SYSTEM_TEMPLATES = [
   "Professional Blue", "Modern Dark", "Classic Corporate", "Minimalist Light",
   "Luxury Gold", "Emerald Tech", "Sunset Premium", "Slate Industrial",
@@ -28,7 +26,7 @@ export default function InvoiceTemplates() {
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate(); // 🔹 Navigate hook initialize kiya
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -127,7 +125,7 @@ export default function InvoiceTemplates() {
         ...formData,
         user_id: user.id,
         company_logo_url: logoUrl,
-        template_html: `<div>Invoice Template HTML</div>`, // Placeholder
+        template_html: `<div>Invoice Template HTML</div>`,
       };
 
       if (editingTemplate) {
@@ -242,11 +240,11 @@ export default function InvoiceTemplates() {
     }
   };
 
-  // 🔹 Template use karne ka function
- const handleUseTemplate = (templateName: string) => {
-  // Ye line sabse zaroori hai connection ke liye
-  navigate(`/invoices?new=true&template=${encodeURIComponent(templateName)}`);
-};
+
+  const handleUseTemplate = (templateName: string) => {
+
+    navigate(`/invoices?new=true&template=${encodeURIComponent(templateName)}`);
+  };
 
   if (loading) {
     return <div className="p-8">Loading templates...</div>;
@@ -273,7 +271,7 @@ export default function InvoiceTemplates() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Template Name *</Label>
+                  <Label>Template Name </Label>
                   <Input
                     required
                     value={formData.name}
@@ -419,7 +417,6 @@ export default function InvoiceTemplates() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* 🔹 System Templates ab active hain */}
         {SYSTEM_TEMPLATES.map((name, index) => (
           <Card key={`system-${index}`} className="border-border/50 bg-slate-900/50 hover:border-orange-500 transition-colors cursor-pointer" onClick={() => handleUseTemplate(name)}>
             <CardHeader className="pb-2">
@@ -436,8 +433,8 @@ export default function InvoiceTemplates() {
             </CardHeader>
             <CardContent>
               <div className="flex gap-2 mt-2">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="w-full text-xs bg-orange-600/10 text-orange-500 border border-orange-600/20 hover:bg-orange-600 hover:text-white"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -451,7 +448,7 @@ export default function InvoiceTemplates() {
           </Card>
         ))}
 
-        {/* 🔹 User ke banaye hue Templates */}
+
         {templates.map((template) => (
           <Card key={template.id} className="shadow-card border-orange-500/20">
             <CardHeader className="pb-2">
@@ -468,7 +465,7 @@ export default function InvoiceTemplates() {
                   )}
                 </div>
                 {template.company_logo_url ? (
-                   <img src={template.company_logo_url} className="h-8 w-8 object-contain rounded" alt="logo" />
+                  <img src={template.company_logo_url} className="h-8 w-8 object-contain rounded" alt="logo" />
                 ) : (
                   <ImageIcon className="h-5 w-5 text-muted-foreground" />
                 )}
@@ -488,8 +485,8 @@ export default function InvoiceTemplates() {
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="bg-orange-600 hover:bg-orange-700 text-white"
                     onClick={() => handleUseTemplate(template.name)}
                   >

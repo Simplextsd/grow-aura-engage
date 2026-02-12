@@ -14,7 +14,7 @@ const Itineraries = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  // Popups States
+  
   const [selectedItinerary, setSelectedItinerary] = useState<any>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -70,7 +70,7 @@ const Itineraries = () => {
         </div>
       </div>
 
-      {/* 📋 Table Layout */}
+      
       <div className="rounded-md border border-zinc-800 bg-[#020817] overflow-hidden">
         <table className="w-full text-sm text-left border-collapse">
           <thead className="bg-[#0f172a] text-zinc-400 border-b border-zinc-800">
@@ -110,8 +110,6 @@ const Itineraries = () => {
           </tbody>
         </table>
       </div>
-
-      {/* 👁️ VIEW POPUP */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="bg-zinc-950 text-white border-zinc-800 max-w-lg">
           <DialogHeader><DialogTitle className="border-b border-zinc-800 pb-2">Itinerary Details</DialogTitle></DialogHeader>

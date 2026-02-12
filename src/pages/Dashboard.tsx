@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, Package, Users, DollarSign, Plane, Sparkles, LogOut, Hotel } from "lucide-react"; // 🔹 Hotel icon add kiya
 import { StatCard } from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
-
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -12,11 +11,10 @@ export default function Dashboard() {
     totalRevenue: 0,
     bookingGrowth: "0",
     revenueGrowth: "0",
-    hotelGrowth: "0" // 🔹 Name change: packageGrowth to hotelGrowth
+    hotelGrowth: "0"
   });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-
   const fetchDashboardData = async () => {
     const token = localStorage.getItem("token");
     const headers = { "Authorization": `Bearer ${token}` };
@@ -24,17 +22,13 @@ export default function Dashboard() {
       // 1. Fetching Bookings and Revenue
       const bookRes = await fetch("http://localhost:5000/api/bookings/all", { headers });
       const data = await bookRes.json();
-
       if (Array.isArray(data)) {
         const currentBookings = data.length;
         const totalRev = data.reduce((sum, item) => sum + (parseFloat(item.totalAmount) || 0), 0);
-
         const previousMonthBookings = 5;
         const bGrowth = ((currentBookings - previousMonthBookings) / previousMonthBookings * 100).toFixed(0);
-
         const previousMonthRevenue = 1000;
         const rGrowth = ((totalRev - previousMonthRevenue) / previousMonthRevenue * 100).toFixed(0);
-
         setStats(prev => ({
           ...prev,
           totalBookings: currentBookings,
@@ -45,19 +39,16 @@ export default function Dashboard() {
       }
       const hotelRes = await fetch("http://localhost:5000/api/hotels/all", { headers });
       const hotelData = await hotelRes.json();
-
       if (Array.isArray(hotelData)) {
         const currentHotels = hotelData.length;
         const previousMonthHotels = 1;
         const hGrowth = ((currentHotels - previousMonthHotels) / previousMonthHotels * 100).toFixed(0);
-
         setStats(prev => ({
           ...prev,
-          totalHotels: currentHotels, 
-          hotelGrowth: `+${hGrowth}%` 
+          totalHotels: currentHotels,
+          hotelGrowth: `+${hGrowth}%`
         }));
       }
-
       setLoading(false);
     } catch (error) {
       console.error("Dashboard error:", error);

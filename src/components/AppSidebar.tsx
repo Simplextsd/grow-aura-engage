@@ -22,9 +22,7 @@ const crmItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Bookings", url: "/bookings", icon: Calendar },
-  // { title: "Packages", url: "/packages", icon: Package },
-  // { title: "Itineraries", url: "/itineraries", icon: Map },
-  // { title: "Pipeline", url: "/pipeline", icon: Target },
+
   { title: "Hotels", url: "/hotels", icon: CheckSquare },
 ];
 

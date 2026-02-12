@@ -64,7 +64,7 @@ export default function Auth() {
         <CardHeader className="text-center">
           <div className="h-12 w-12 rounded-lg bg-primary mx-auto mb-4 flex items-center justify-center font-bold text-primary-foreground text-xl">GB</div>
           <CardTitle className="text-2xl font-semibold">Grow Business Digital</CardTitle>
-          <CardDescription>Your complete travel agency CRM solutions</CardDescription>
+          <CardDescription>Your complete travel agency CRM solutionss</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">

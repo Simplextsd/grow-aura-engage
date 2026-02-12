@@ -13,7 +13,6 @@ import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-// import Pipeline from "./pages/Pipeline";
 import Hotels from "./pages/Hotels"
 import Calendar from "./pages/Calendar";
 import Workflows from "./pages/Workflows";
@@ -23,8 +22,6 @@ import InvoiceTemplates from "./pages/InvoiceTemplates";
 import Courses from "./pages/Courses";
 import Calls from "./pages/Calls";
 import Bookings from "./pages/Bookings";
-// import Packages from "./pages/Packages";
-// import Itineraries from "./pages/Itineraries";
 import AIAssistant from "./pages/AIAssistant";
 import Segments from "./pages/Segments";
 import LeadForms from "./pages/LeadForms";
@@ -41,7 +38,6 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
           <Route path="/contacts" element={<ProtectedRoute><Layout><Contacts /></Layout></ProtectedRoute>} />
-          {/* <Route path="/pipeline" element={<ProtectedRoute><Layout><Pipeline /></Layout></ProtectedRoute>} /> */}
           <Route path="/Hotels" element={<ProtectedRoute><Layout><Hotels /></Layout></ProtectedRoute>} />
           <Route path="/calendar" element={<ProtectedRoute><Layout><Calendar /></Layout></ProtectedRoute>} />
           <Route path="/campaigns" element={<ProtectedRoute><Layout><Campaigns /></Layout></ProtectedRoute>} />
@@ -55,12 +51,9 @@ const App = () => (
           <Route path="/courses" element={<ProtectedRoute><Layout><Courses /></Layout></ProtectedRoute>} />
           <Route path="/calls" element={<ProtectedRoute><Layout><Calls /></Layout></ProtectedRoute>} />
           <Route path="/bookings" element={<ProtectedRoute><Layout><Bookings /></Layout></ProtectedRoute>} />
-          {/* <Route path="/packages" element={<ProtectedRoute><Layout><Packages /></Layout></ProtectedRoute>} /> */}
-          {/* <Route path="/itineraries" element={<ProtectedRoute><Layout><Itineraries /></Layout></ProtectedRoute>} /> */}
           <Route path="/ai-assistant" element={<ProtectedRoute><Layout><AIAssistant /></Layout></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Layout><Reports /></Layout></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

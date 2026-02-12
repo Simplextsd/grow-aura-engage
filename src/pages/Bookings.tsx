@@ -3,8 +3,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Users, Info, UserCheck, Eye, Calendar, DollarSign, Package, ChevronLeft, ChevronRight } from "lucide-react"; 
-import { Button } from "@/components/ui/button"; 
+import { Search, Users, Info, UserCheck, Eye, Calendar, DollarSign, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-import { CreateBookingDialog } from "@/components/CreateBookingDialog"; 
-import { EditBookingDialog } from "@/components/EditBookingDialog"; 
+import { CreateBookingDialog } from "@/components/CreateBookingDialog";
+import { EditBookingDialog } from "@/components/EditBookingDialog";
 
 const Bookings = () => {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -64,11 +64,11 @@ const Bookings = () => {
   // 🔢 NEW: Pagination Logic
   const lastIndex = currentPage * recordsPerPage;
   const firstIndex = lastIndex - recordsPerPage;
-  const currentRecords = filteredBookings.slice(firstIndex, lastIndex); // Yeh line sirf 10 records nikalay gi
+  const currentRecords = filteredBookings.slice(firstIndex, lastIndex);
   const totalPages = Math.ceil(filteredBookings.length / recordsPerPage);
 
   if (loading) {
-    return <div className="p-8 text-white">Loading bookings from database...</div>;
+    return <div className="p-8 text-white">Loading bookings</div>;
   }
 
   return (
@@ -78,7 +78,7 @@ const Bookings = () => {
           <h1 className="text-3xl font-bold">Bookings</h1>
           <p className="text-muted-foreground">Manage your travel bookings</p>
         </div>
-        <CreateBookingDialog onBookingCreated={fetchBookings} />
+      <CreateBookingDialog onSuccess={fetchBookings} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -111,7 +111,7 @@ const Bookings = () => {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setCurrentPage(1); // Search karne pe wapis pehle page pe le jaye
+                setCurrentPage(1);
               }}
               className="pl-10 bg-slate-950 border-slate-700"
             />
@@ -119,19 +119,19 @@ const Bookings = () => {
         </CardHeader>
         <CardContent>
           <Table>
-           <TableHeader>
-  {/* Yahan <tr> ki jagah <TableRow> use karein */}
-  <TableRow className="border-slate-800 hover:bg-transparent">
-    <TableHead className="text-slate-400">Agent</TableHead>
-    <TableHead className="text-slate-400">Client Name</TableHead>
-    <TableHead className="text-slate-400">Client ID</TableHead> 
-    <TableHead className="text-slate-400">Package</TableHead>
-    <TableHead className="text-slate-400">Travel Date</TableHead>
-    <TableHead className="text-slate-400">Travelers</TableHead>
-    <TableHead className="text-slate-400">Amount</TableHead>
-    <TableHead className="text-slate-400 text-right">Actions</TableHead>
-  </TableRow> {/* Yahan pehle </tr> tha, isay update kar dein */}
-</TableHeader>
+            <TableHeader>
+              {/* Yahan <tr> ki jagah <TableRow> use karein */}
+              <TableRow className="border-slate-800 hover:bg-transparent">
+                <TableHead className="text-slate-400">Agent</TableHead>
+                <TableHead className="text-slate-400">Client Name</TableHead>
+                <TableHead className="text-slate-400">Client ID</TableHead>
+                <TableHead className="text-slate-400">Package</TableHead>
+                <TableHead className="text-slate-400">Travel Date</TableHead>
+                <TableHead className="text-slate-400">Travelers</TableHead>
+                <TableHead className="text-slate-400">Amount</TableHead>
+                <TableHead className="text-slate-400 text-right">Actions</TableHead>
+              </TableRow> {/* Yahan pehle </tr> tha, isay update kar dein */}
+            </TableHeader>
             <TableBody>
               {currentRecords.length === 0 ? (
                 <TableRow>
@@ -153,7 +153,7 @@ const Bookings = () => {
                     <TableCell className="font-mono font-bold text-orange-500">#{booking.id}</TableCell>
                     <TableCell className="capitalize">{booking.packageId || booking.package || "Custom"}</TableCell>
                     <TableCell>{booking.travelDate ? new Date(booking.travelDate).toLocaleDateString() : "N/A"}</TableCell>
-                    
+
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Users className="h-4 w-4" />
@@ -161,14 +161,14 @@ const Bookings = () => {
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-emerald-400">${Number(booking.totalAmount || 0).toLocaleString()}</TableCell>
-                    
+
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
                             >
                               <Eye className="h-4 w-4" />
@@ -222,10 +222,10 @@ const Bookings = () => {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        
-                        <EditBookingDialog 
-                          booking={booking} 
-                          onBookingUpdated={fetchBookings} 
+
+                        <EditBookingDialog
+                          booking={booking}
+                          onBookingUpdated={fetchBookings}
                         />
                       </div>
                     </TableCell>
@@ -250,7 +250,7 @@ const Bookings = () => {
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Previous
               </Button>
-              
+
               <div className="flex items-center gap-1 px-2">
                 <span className="text-sm text-slate-400 text-center min-w-[80px]">
                   Page {currentPage} of {totalPages || 1}
@@ -268,7 +268,7 @@ const Bookings = () => {
               </Button>
             </div>
           </div>
-          {/* End of Pagination */}
+        
 
         </CardContent>
       </Card>
