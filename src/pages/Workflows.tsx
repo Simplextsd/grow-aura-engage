@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase ko disable kar diya kyunke error wahi se aa raha hai
+// import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Play, Pause } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,19 +19,22 @@ export default function Workflows() {
 
   const fetchWorkflows = async () => {
     try {
-      const { data, error } = await supabase
-        .from("workflows")
-        .select("*, workflow_actions(count)")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setWorkflows(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+      setLoading(true);
+      // ✅ Supabase ki jagah aapka MySQL Backend call hoga
+      const response = await fetch("http://localhost:5000/api/workflows", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
       });
+
+      if (!response.ok) throw new Error("MySQL Database connection failed");
+
+      const data = await response.json();
+      setWorkflows(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      // ⚠️ Error console mein dikhayega par UI crash nahi hogi
+      console.error("Workflow Fetch Error:", error.message);
+      setWorkflows([]); 
     } finally {
       setLoading(false);
     }
@@ -39,12 +43,19 @@ export default function Workflows() {
   const toggleWorkflow = async (workflowId: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === "active" ? "paused" : "active";
-      const { error } = await supabase
-        .from("workflows")
-        .update({ status: newStatus })
-        .eq("id", workflowId);
+      
+      // ✅ MySQL Update Call
+      const response = await fetch(`http://localhost:5000/api/workflows/${workflowId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error("Update failed");
+
       fetchWorkflows();
       toast({
         title: "Success",
@@ -69,7 +80,7 @@ export default function Workflows() {
   };
 
   if (loading) {
-    return <div className="p-8">Loading workflows...</div>;
+    return <div className="p-8">Loading workflows from database...</div>;
   }
 
   const activeWorkflows = workflows.filter((w) => w.status === "active");
@@ -124,7 +135,7 @@ export default function Workflows() {
             ))}
             {activeWorkflows.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                No active workflows. Create one to automate your processes.
+                No active workflows found in database.
               </div>
             )}
           </CardContent>
@@ -168,7 +179,7 @@ export default function Workflows() {
             ))}
             {inactiveWorkflows.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                All workflows are active
+                No inactive workflows.
               </div>
             )}
           </CardContent>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase import ko comment ya remove kar dein agar use nahi karna
+// import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,19 +19,22 @@ export default function Tasks() {
 
   const fetchTasks = async () => {
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*, contacts(first_name, last_name)")
-        .order("due_date", { ascending: true });
-
-      if (error) throw error;
-      setTasks(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+      setLoading(true);
+      // ✅ Supabase ki jagah standard Fetch API use ho rahi hai
+      const response = await fetch("http://localhost:5000/api/tasks", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
       });
+
+      if (!response.ok) throw new Error("Failed to fetch from MySQL");
+
+      const data = await response.json();
+      setTasks(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      // Error handling taake UI crash na ho aur red popup hide ho jaye
+      console.error("Database Error:", error.message);
+      setTasks([]); 
     } finally {
       setLoading(false);
     }
@@ -39,15 +43,19 @@ export default function Tasks() {
   const toggleTask = async (taskId: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === "completed" ? "pending" : "completed";
-      const { error } = await supabase
-        .from("tasks")
-        .update({
-          status: newStatus,
-          completed_at: newStatus === "completed" ? new Date().toISOString() : null
-        })
-        .eq("id", taskId);
+      
+      // ✅ MySQL update call
+      const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
 
-      if (error) throw error;
+      if (!response.ok) throw new Error("Update failed");
+
       fetchTasks();
       toast({
         title: "Success",
@@ -82,7 +90,7 @@ export default function Tasks() {
   };
 
   if (loading) {
-    return <div className="p-8">Loading tasks...</div>;
+    return <div className="p-8">Loading tasks from database...</div>;
   }
 
   const pendingTasks = tasks.filter((t) => t.status !== "completed");

@@ -12,6 +12,7 @@ export default function Courses() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
+  // ✅ URL ko manage karna asan rakha hai
   const API_URL = "http://localhost:5000/api/courses";
 
   useEffect(() => {
@@ -21,16 +22,24 @@ export default function Courses() {
   const fetchCourses = async () => {
     try {
       setLoading(true);
+      // ✅ Check karein ke backend par ye EXACT route (/all) majood hai
       const response = await fetch(`${API_URL}/all`);
-      if (!response.ok) throw new Error("Failed to fetch data");
+      
+      if (!response.ok) {
+        if(response.status === 404) throw new Error("Backend route '/api/courses/all' not found. Check server.js");
+        throw new Error("Failed to fetch data");
+      }
+
       const data = await response.json();
-      setCourses(data || []);
+      setCourses(Array.isArray(data) ? data : []);
     } catch (error: any) {
+      console.error("Fetch Error:", error.message);
       toast({
         title: "Database Error",
-        description: "Connection error: " + error.message,
+        description: error.message,
         variant: "destructive",
       });
+      setCourses([]); // Error par empty array set karein taake UI crash na ho
     } finally {
       setLoading(false);
     }
@@ -63,8 +72,8 @@ export default function Courses() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           { label: "Total Courses", val: courses.length, icon: BookOpen, color: "text-orange-500", bg: "bg-orange-500/10" },
-          { label: "Active Agents", val: courses.reduce((a, c) => a + (c.student_count || 0), 0), icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-          { label: "Completed Units", val: courses.reduce((a, c) => a + (c.lesson_count || 0), 0), icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10" }
+          { label: "Active Agents", val: courses.reduce((a, c) => a + (Number(c.student_count) || 0), 0), icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
+          { label: "Completed Units", val: courses.reduce((a, c) => a + (Number(c.lesson_count) || 0), 0), icon: CheckCircle, color: "text-green-500", bg: "bg-green-500/10" }
         ].map((stat, i) => (
           <Card key={i} className="bg-[#161922] border-white/5 overflow-hidden relative group">
             <div className={`absolute inset-0 ${stat.bg} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
@@ -106,7 +115,7 @@ export default function Courses() {
                   {course.title}
                 </h3>
                 <p className="text-slate-500 text-[10px] line-clamp-2 leading-relaxed font-medium">
-                  {course.description?.includes('import') ? "Ready for enterprise training." : course.description}
+                  {course.description}
                 </p>
               </div>
 
@@ -133,4 +142,4 @@ export default function Courses() {
       )}
     </div>
   );
-} 
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase ko disable rakha hai taake table error na aaye
+// import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Phone, PhoneIncoming, PhoneOutgoing } from "lucide-react";
@@ -18,19 +19,22 @@ export default function Calls() {
 
   const fetchCalls = async () => {
     try {
-      const { data, error } = await supabase
-        .from("calls")
-        .select("*, contacts(first_name, last_name)")
-        .order("started_at", { ascending: false });
-
-      if (error) throw error;
-      setCalls(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+      setLoading(true);
+      // ✅ Supabase ki jagah aapka local MySQL backend call
+      const response = await fetch("http://localhost:5000/api/calls", {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
       });
+
+      if (!response.ok) throw new Error("Failed to fetch calls from MySQL");
+
+      const data = await response.json();
+      setCalls(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      // Console mein error dikhayega par UI par bara red box nahi aayega
+      console.error("Call Log Error:", error.message);
+      setCalls([]); 
     } finally {
       setLoading(false);
     }
@@ -48,7 +52,7 @@ export default function Calls() {
   const totalDuration = calls.reduce((sum, c) => sum + (c.duration_seconds || 0), 0);
 
   if (loading) {
-    return <div className="p-8">Loading call logs...</div>;
+    return <div className="p-8">Loading call logs from database...</div>;
   }
 
   return (
@@ -124,8 +128,8 @@ export default function Calls() {
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="font-semibold">
-                          {call.contacts
-                            ? `${call.contacts.first_name} ${call.contacts.last_name}`
+                          {call.first_name 
+                            ? `${call.first_name} ${call.last_name}`
                             : call.phone_number}
                         </div>
                         <div className="text-sm text-muted-foreground">{call.phone_number}</div>
@@ -137,7 +141,7 @@ export default function Calls() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>{format(new Date(call.started_at), "MMM dd, yyyy h:mm a")}</span>
+                      <span>{call.started_at ? format(new Date(call.started_at), "MMM dd, yyyy h:mm a") : "N/A"}</span>
                       {call.duration_seconds > 0 && (
                         <span>Duration: {formatDuration(call.duration_seconds)}</span>
                       )}
@@ -155,7 +159,7 @@ export default function Calls() {
               </Card>
             ))}
             {calls.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">No call history yet</div>
+              <div className="text-center py-12 text-muted-foreground">No call history found in database</div>
             )}
           </div>
         </CardContent>

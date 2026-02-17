@@ -1,30 +1,24 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Users, Info, UserCheck, Eye, Calendar, DollarSign, Package, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-
+import { 
+  TrendingUp, 
+  Users, 
+  DollarSign, 
+  Briefcase, 
+  ArrowUpRight,
+  RefreshCcw
+} from "lucide-react";
 import { CreateBookingDialog } from "@/components/CreateBookingDialog";
-import { EditBookingDialog } from "@/components/EditBookingDialog";
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, BarChart, Bar, Cell 
+} from "recharts";
 
 const Bookings = () => {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-
-  // 🔹 NEW: Pagination States
-  const [currentPage, setCurrentPage] = useState(1);
-  const recordsPerPage = 10; // Aik waqt mein 10 show honge
 
   useEffect(() => {
     fetchBookings();
@@ -34,20 +28,27 @@ const Bookings = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/bookings/all", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+      
+      // ✅ FIX 1: Sirf /api/bookings use karein (404 se bachne ke liye)
+      const response = await fetch("http://localhost:5000/api/bookings", {
+        headers: { "Authorization": `Bearer ${token}` }
       });
 
-      if (!response.ok) throw new Error("Failed to fetch bookings");
+      if (!response.ok) throw new Error("Server response error");
 
-      const data = await response.json();
-      setBookings(data || []);
+      const result = await response.json();
+      
+      // ✅ FIX 2: Backend 'result.data' mein array bhej raha hai
+      if (result.success && Array.isArray(result.data)) {
+        setBookings(result.data);
+      } else {
+        setBookings([]);
+      }
     } catch (error: any) {
+      console.error("Fetch Error:", error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Sync Error",
+        description: "Dashboard data load nahi ho saka.",
         variant: "destructive",
       });
     } finally {
@@ -55,223 +56,133 @@ const Bookings = () => {
     }
   };
 
-  const filteredBookings = bookings.filter((booking) =>
-    booking.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.agentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.packageId?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ✅ Professional Data Processing
+  const totalRevenue = bookings.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0);
+  
+  // ✅ FIX 3: Travelers count karne ke liye items_json ko parse karein
+  const totalTravelers = bookings.reduce((sum, b) => {
+    try {
+      const items = typeof b.items_json === 'string' ? JSON.parse(b.items_json) : (b.items_json || {});
+      const count = Array.isArray(items.passengers) ? items.passengers.length : 1;
+      return sum + count;
+    } catch {
+      return sum + 1;
+    }
+  }, 0);
 
-  // 🔢 NEW: Pagination Logic
-  const lastIndex = currentPage * recordsPerPage;
-  const firstIndex = lastIndex - recordsPerPage;
-  const currentRecords = filteredBookings.slice(firstIndex, lastIndex);
-  const totalPages = Math.ceil(filteredBookings.length / recordsPerPage);
+  // ✅ FIX 4: Chart Data mapping
+  const chartData = bookings.length > 0 ? bookings.map((b) => {
+    let tCount = 1;
+    try {
+      const items = typeof b.items_json === 'string' ? JSON.parse(b.items_json) : (b.items_json || {});
+      tCount = Array.isArray(items.passengers) ? items.passengers.length : 1;
+    } catch(e) { tCount = 1; }
 
-  if (loading) {
-    return <div className="p-8 text-white">Loading bookings</div>;
-  }
+    return {
+      name: b.customerName?.split(' ')[0] || "Client",
+      amount: Number(b.totalAmount || 0),
+      travelers: tCount,
+    };
+  }).slice(-8) : [
+    { name: 'N/A', amount: 0, travelers: 0 }
+  ];
+
+  const COLORS = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
-    <div className="p-8 space-y-6 text-white bg-slate-950 min-h-screen">
-      <div className="flex justify-between items-center">
+    <div className="p-8 space-y-8 text-slate-100 bg-[#020617] min-h-screen">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-6">
         <div>
-          <h1 className="text-3xl font-bold">Bookings</h1>
-          <p className="text-muted-foreground">Manage your travel bookings</p>
+          <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            Business Intelligence
+          </h1>
+          <p className="text-slate-400 mt-1">Real-time booking insights and revenue tracking</p>
         </div>
-      <CreateBookingDialog onSuccess={fetchBookings} />
+        <div className="flex gap-3">
+          <button 
+            onClick={fetchBookings}
+            className="p-2 rounded-md border border-slate-700 hover:bg-slate-800 transition-colors"
+          >
+            <RefreshCcw size={20} className={loading ? "animate-spin" : ""} />
+          </button>
+          <CreateBookingDialog onSuccess={fetchBookings} />
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="bg-slate-900 border-slate-800 text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{bookings.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-slate-900 border-slate-800 text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${bookings.reduce((sum, b) => sum + Number(b.totalAmount || 0), 0).toLocaleString()}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="bg-slate-900 border-slate-800 text-white">
-        <CardHeader>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by customer or agent..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-10 bg-slate-950 border-slate-700"
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              {/* Yahan <tr> ki jagah <TableRow> use karein */}
-              <TableRow className="border-slate-800 hover:bg-transparent">
-                <TableHead className="text-slate-400">Agent</TableHead>
-                <TableHead className="text-slate-400">Client Name</TableHead>
-                <TableHead className="text-slate-400">Client ID</TableHead>
-                <TableHead className="text-slate-400">Package</TableHead>
-                <TableHead className="text-slate-400">Travel Date</TableHead>
-                <TableHead className="text-slate-400">Travelers</TableHead>
-                <TableHead className="text-slate-400">Amount</TableHead>
-                <TableHead className="text-slate-400 text-right">Actions</TableHead>
-              </TableRow> {/* Yahan pehle </tr> tha, isay update kar dein */}
-            </TableHeader>
-            <TableBody>
-              {currentRecords.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground border-slate-800">
-                    No bookings found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                currentRecords.map((booking) => (
-                  <TableRow key={booking.id} className="border-slate-800">
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-purple-400 font-medium">
-                        <UserCheck className="h-3 w-3" />
-                        {booking.agentName || "Aqeel"}
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="font-medium">{booking.customerName || "N/A"}</TableCell>
-                    <TableCell className="font-mono font-bold text-orange-500">#{booking.id}</TableCell>
-                    <TableCell className="capitalize">{booking.packageId || booking.package || "Custom"}</TableCell>
-                    <TableCell>{booking.travelDate ? new Date(booking.travelDate).toLocaleDateString() : "N/A"}</TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {booking.numberOfTravelers || booking.travelers || 1}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-emerald-400">${Number(booking.totalAmount || 0).toLocaleString()}</TableCell>
-
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px]">
-                            <DialogHeader>
-                              <DialogTitle className="text-xl font-bold flex items-center gap-2 border-b border-slate-800 pb-2">
-                                <Info className="h-5 w-5 text-blue-400" /> Booking Details
-                              </DialogTitle>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                              <div className="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
-                                <span className="text-slate-400 text-sm">Booking ID:</span>
-                                <span className="font-mono font-bold text-orange-500">#{booking.id}</span>
-                              </div>
-                              <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Client Name:</span>
-                                  <span className="font-medium">{booking.customerName}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Agent:</span>
-                                  <span className="text-purple-400 font-medium">{booking.agentName || "Aqeel"}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Package:</span>
-                                  <span className="text-emerald-400 flex items-center gap-1">
-                                    <Package className="h-3 w-3" /> {booking.packageId || "Custom"}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Travel Date:</span>
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" /> {booking.travelDate ? new Date(booking.travelDate).toLocaleDateString() : "N/A"}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-slate-400">Total Travelers:</span>
-                                  <span className="flex items-center gap-1">
-                                    <Users className="h-3 w-3" /> {booking.numberOfTravelers || 1}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                                  <span className="text-slate-400 font-bold">Total Paid:</span>
-                                  <span className="text-xl font-bold text-emerald-400">
-                                    ${Number(booking.totalAmount || 0).toLocaleString()}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-
-                        <EditBookingDialog
-                          booking={booking}
-                          onBookingUpdated={fetchBookings}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-
-          {/* 🔢 NEW: Pagination Controls UI */}
-          <div className="flex items-center justify-between px-2 py-4 border-t border-slate-800 mt-4">
-            <div className="text-sm text-slate-400">
-              Showing <span className="text-white font-medium">{firstIndex + 1}</span> to <span className="text-white font-medium">{Math.min(lastIndex, filteredBookings.length)}</span> of <span className="text-white font-medium">{filteredBookings.length}</span> entries
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-slate-900 border-slate-700 hover:bg-slate-800 text-white disabled:opacity-50"
-                onClick={() => setCurrentPage(prev => prev - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
-              </Button>
-
-              <div className="flex items-center gap-1 px-2">
-                <span className="text-sm text-slate-400 text-center min-w-[80px]">
-                  Page {currentPage} of {totalPages || 1}
-                </span>
+      {/* Stats Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {[
+          { title: "Total Revenue", value: `$${totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-emerald-400", bg: "bg-emerald-400/10" },
+          { title: "Total Bookings", value: bookings.length, icon: Briefcase, color: "text-blue-400", bg: "bg-blue-400/10" },
+          { title: "Total Travelers", value: totalTravelers, icon: Users, color: "text-purple-400", bg: "bg-purple-400/10" },
+          { title: "Avg. Deal Size", value: `$${bookings.length ? Math.round(totalRevenue/bookings.length) : 0}`, icon: ArrowUpRight, color: "text-orange-400", bg: "bg-orange-400/10" }
+        ].map((stat, i) => (
+          <Card key={i} className="bg-slate-900/50 border-slate-800 backdrop-blur-sm shadow-xl">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between space-y-0 pb-2">
+                <p className="text-sm font-medium text-slate-400">{stat.title}</p>
+                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
+                  <stat.icon size={20} />
+                </div>
               </div>
+              <div className="text-3xl font-bold mt-2">{stat.value}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-slate-900 border-slate-700 hover:bg-slate-800 text-white disabled:opacity-50"
-                onClick={() => setCurrentPage(prev => prev + 1)}
-                disabled={currentPage === totalPages || totalPages === 0}
-              >
-                Next <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-          </div>
-        
+      {/* Graphics Section */}
+      <div className="grid gap-6 lg:grid-cols-7">
+        <Card className="lg:col-span-4 bg-slate-900/40 border-slate-800 overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="text-emerald-400" size={20} /> Revenue Velocity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[350px] pr-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
+                />
+                <Area type="monotone" dataKey="amount" stroke="#10b981" fillOpacity={1} fill="url(#colorRev)" strokeWidth={3} dot={{r: 4, fill: '#10b981'}} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-        </CardContent>
-      </Card>
+        <Card className="lg:col-span-3 bg-slate-900/40 border-slate-800">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Users className="text-blue-400" size={20} /> Booking Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }} />
+                <Bar dataKey="travelers" radius={[6, 6, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

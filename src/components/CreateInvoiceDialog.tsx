@@ -15,15 +15,16 @@ import {
   ReceiptText,
   Save,
   X,
-  DollarSign,
-  History,
   UploadCloud,
   Trash2,
   Users,
   Briefcase,
   CreditCard,
   RefreshCw,
+  DollarSign,
 } from "lucide-react";
+
+console.log("✅ INVOICE PAGE MOUNTED");
 
 type PassengerRow = {
   firstName: string;
@@ -136,14 +137,13 @@ export default function CreateInvoiceDialog({
     })
   );
 
-  // ✅ UPDATED formData (Booking wala Stripe + Currency logic + Invoice template also kept)
+  // ✅ UPDATED formData
   const [formData, setFormData] = useState({
     customer_name: "",
     template_id: "Professional Blue",
     due_date: "",
     status: "sent",
 
-    // ✅ Booking wala logic
     payment_method: "Stripe",
     currency: "USD" as "USD" | "CAD",
     exchange_rate: 1.4,
@@ -167,7 +167,7 @@ export default function CreateInvoiceDialog({
     }
   }, [searchParams]);
 
-  // ✅ Automatic currency calculation (same booking logic)
+  // ✅ Automatic currency calculation
   useEffect(() => {
     const rate = Number(formData.exchange_rate) || 1;
 
@@ -218,7 +218,7 @@ export default function CreateInvoiceDialog({
     setter(updatedRows);
   };
 
-  // ✅ Grand totals based on currency (same booking logic)
+  // ✅ Grand totals
   const grandTotal = formData.currency === "USD" ? formData.total_selling_usd : formData.total_selling_cad;
   const remaining = grandTotal - formData.payment_received;
 
@@ -226,9 +226,12 @@ export default function CreateInvoiceDialog({
     if (e.target.files) setFormData({ ...formData, files: Array.from(e.target.files) });
   };
 
-  // ✅ Add row (correct shapes)
+  // ✅ Add row
   const addPassengerRow = () =>
-    setPassengerRows((prev) => [...prev, { firstName: "", lastName: "", phone: "", email: "", dob: "", gender: "Male" }]);
+    setPassengerRows((prev) => [
+      ...prev,
+      { firstName: "", lastName: "", phone: "", email: "", dob: "", gender: "Male" },
+    ]);
 
   const addFlightRow = () =>
     setFlightRows((prev) => [
@@ -247,74 +250,89 @@ export default function CreateInvoiceDialog({
     ]);
 
   const addHotelRow = () =>
-    setHotelRows((prev) => [...prev, { name: "", meal: "", room: "", in: "", out: "", ref: "", supplier: "", price: "", guests: "" }]);
+    setHotelRows((prev) => [
+      ...prev,
+      { name: "", meal: "", room: "", in: "", out: "", ref: "", supplier: "", price: "", guests: "" },
+    ]);
 
   const addTransportRow = () =>
-    setTransportRows((prev) => [...prev, { date: "", vehicle: "", pickup: "", dropoff: "", contact: "", supplier: "", pax: "", cost: "" }]);
+    setTransportRows((prev) => [
+      ...prev,
+      { date: "", vehicle: "", pickup: "", dropoff: "", contact: "", supplier: "", pax: "", cost: "" },
+    ]);
 
   const deleteRow = (index: number, setter: any) => {
     setter((prev: any[]) => prev.filter((_: any, i: number) => i !== index));
   };
 
+  // ✅✅✅ A to Z FIX: Invoice DB me save hoga via /api/invoices + PDF open hoga
   const handleSubmit = async () => {
     try {
-      if (!formData.customer_name) {
+      const customer = formData.customer_name?.trim();
+      if (!customer) {
         alert("Please enter Customer Name first!");
         return;
       }
 
-      const invoiceData = {
-        customer_name: formData.customer_name,
-        template_id: formData.template_id,
+      const itemsObj = {
+        passengers: passengerRows,
+        flights: flightRows,
+        hotels: hotelRows,
+        transport: transportRows,
+        flight_booking_ref: flightBookingRef,
+        other_services: {
+          description: formData.other_description,
+          visa: formData.visa_required,
+          ziarat: formData.ziarat_required,
+        },
+      };
 
-        total_amount: grandTotal,
-        currency: formData.currency,
-        exchange_rate: formData.exchange_rate,
-
-        paid_amount: formData.payment_received,
-        balance_amount: remaining,
-
-        status: formData.status,
-        payment_method: formData.payment_method,
-        generate_stripe_link: formData.generate_stripe_link,
-
+      const invoicePayload = {
+        customer_name: customer,
         due_date: formData.due_date || null,
+        status: formData.status || "sent",
 
-        items_json: JSON.stringify({
-          passengers: passengerRows,
-          flights: flightRows,
-          hotels: hotelRows,
-          transport: transportRows,
-          flight_booking_ref: flightBookingRef,
-          other_services: {
-            description: formData.other_description,
-            visa: formData.visa_required,
-            ziarat: formData.ziarat_required,
-          },
-        }),
+        currency: formData.currency || "USD",
+        exchange_rate: Number(formData.exchange_rate || 1),
+
+        total_amount: Number(grandTotal || 0),
+        paid_amount: Number(formData.payment_received || 0),
+        balance_amount: Number(remaining || 0),
+
+        payment_method: formData.payment_method || "Stripe",
+        generate_stripe_link: !!formData.generate_stripe_link,
+
+        // ✅ backend ko string JSON chahiye
+        items_json: JSON.stringify(itemsObj),
+
+        // booking_id: null, // optional (agar booking table se link karna ho)
       };
 
       const response = await fetch("http://localhost:5000/api/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(invoiceData),
+        body: JSON.stringify(invoicePayload),
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
 
-      if (response.ok) {
-        alert("✅ Success!");
-
-        // ✅ Stripe url open if returned
-        if (result?.stripe_url) window.open(result.stripe_url, "_blank");
-        else if (result?.id) window.open(`http://localhost:5000/api/invoices/download/${result.id}`, "_blank");
-
-        if (onSuccess) onSuccess();
-        setOpen(false);
-      } else {
-        alert("❌ Server Error: " + (result.error || "Data save nahi ho saka."));
+      if (!response.ok) {
+        console.error("SERVER ERROR:", result);
+        alert("❌ Server Error: " + (result?.message || result?.error || "Save failed"));
+        return;
       }
+
+      alert("✅ Invoice Saved in Database!");
+
+      // ✅ PDF open
+      if (result?.id) {
+        window.open(`http://localhost:5000/api/invoices/download/${result.id}`, "_blank");
+      }
+
+      onSuccess?.();
+      setOpen(false);
     } catch (err) {
+      console.error("API ERROR:", err);
       alert("❌ Backend API Error!");
     }
   };
@@ -341,7 +359,10 @@ export default function CreateInvoiceDialog({
           <DialogTitle className="text-xl font-black text-orange-500 flex items-center gap-2 tracking-tight uppercase">
             <ReceiptText className="h-6 w-6 text-white" /> TRAVEL ERP SYSTEM
           </DialogTitle>
-          <X className="h-5 w-5 text-slate-500 cursor-pointer hover:text-white transition-colors" onClick={() => setOpen(false)} />
+          <X
+            className="h-5 w-5 text-slate-500 cursor-pointer hover:text-white transition-colors"
+            onClick={() => setOpen(false)}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#020617] scrollbar-hide">
@@ -384,7 +405,7 @@ export default function CreateInvoiceDialog({
 
             <div className="space-y-1">
               <Label className="text-[10px] text-slate-500 font-bold uppercase">Status</Label>
-              <Select onValueChange={(v) => setFormData({ ...formData, status: v })} defaultValue="sent">
+              <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
                 <SelectTrigger className="h-9 bg-slate-950 border-slate-800 text-xs focus:ring-orange-500 focus:ring-offset-0">
                   <SelectValue />
                 </SelectTrigger>
@@ -403,7 +424,9 @@ export default function CreateInvoiceDialog({
                 className="h-9 border border-dashed border-slate-700 rounded bg-slate-950/50 flex items-center justify-center cursor-pointer hover:border-orange-500 transition-all"
               >
                 <UploadCloud className="h-4 w-4 mr-2 text-orange-500" />
-                <span className="text-[9px] text-slate-400">{formData.files.length > 0 ? `${formData.files.length} Files` : "Upload Docs"}</span>
+                <span className="text-[9px] text-slate-400">
+                  {formData.files.length > 0 ? `${formData.files.length} Files` : "Upload Docs"}
+                </span>
               </div>
             </div>
           </div>
@@ -432,19 +455,51 @@ export default function CreateInvoiceDialog({
                 </div>
 
                 {passengerRows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_0.8fr_40px] border-b border-slate-800/50 last:border-0">
-                    <Input className={gridInputClass} value={row.firstName} onChange={(e) => handleInputChange(i, "firstName", e.target.value, setPassengerRows, passengerRows)} />
-                    <Input className={gridInputClass} value={row.lastName} onChange={(e) => handleInputChange(i, "lastName", e.target.value, setPassengerRows, passengerRows)} />
-                    <Input className={gridInputClass} value={row.phone} onChange={(e) => handleInputChange(i, "phone", e.target.value, setPassengerRows, passengerRows)} />
-                    <Input className={gridInputClass} value={row.email} onChange={(e) => handleInputChange(i, "email", e.target.value, setPassengerRows, passengerRows)} />
-                    <Input type="date" className={gridInputClass + " [color-scheme:dark]"} value={row.dob} onChange={(e) => handleInputChange(i, "dob", e.target.value, setPassengerRows, passengerRows)} />
-                    <select className={gridInputClass + " bg-slate-950 text-white"} value={row.gender} onChange={(e) => handleInputChange(i, "gender", e.target.value, setPassengerRows, passengerRows)}>
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_1fr_1fr_1.2fr_0.8fr_0.8fr_40px] border-b border-slate-800/50 last:border-0"
+                  >
+                    <Input
+                      className={gridInputClass}
+                      value={row.firstName}
+                      onChange={(e) => handleInputChange(i, "firstName", e.target.value, setPassengerRows, passengerRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.lastName}
+                      onChange={(e) => handleInputChange(i, "lastName", e.target.value, setPassengerRows, passengerRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.phone}
+                      onChange={(e) => handleInputChange(i, "phone", e.target.value, setPassengerRows, passengerRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.email}
+                      onChange={(e) => handleInputChange(i, "email", e.target.value, setPassengerRows, passengerRows)}
+                    />
+                    <Input
+                      type="date"
+                      className={gridInputClass + " [color-scheme:dark]"}
+                      value={row.dob}
+                      onChange={(e) => handleInputChange(i, "dob", e.target.value, setPassengerRows, passengerRows)}
+                    />
+                    <select
+                      className={gridInputClass + " bg-slate-950 text-white"}
+                      value={row.gender}
+                      onChange={(e) => handleInputChange(i, "gender", e.target.value, setPassengerRows, passengerRows)}
+                    >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
                     <div className="flex items-center justify-center bg-slate-950 border-l border-slate-800">
-                      <Trash2 size={13} className="text-slate-600 hover:text-red-500 cursor-pointer" onClick={() => deleteRow(i, setPassengerRows)} />
+                      <Trash2
+                        size={13}
+                        className="text-slate-600 hover:text-red-500 cursor-pointer"
+                        onClick={() => deleteRow(i, setPassengerRows)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -487,26 +542,65 @@ export default function CreateInvoiceDialog({
                 </div>
 
                 {flightRows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.7fr_0.7fr_1fr_1fr_0.7fr_40px] border-b border-slate-800/50 last:border-0">
-                    <Input type="date" className={gridInputClass + " [color-scheme:dark]"} value={row.date} onChange={(e) => handleInputChange(i, "date", e.target.value, setFlightRows, flightRows)} />
-                    <Input className={gridInputClass} value={row.airline} onChange={(e) => handleInputChange(i, "airline", e.target.value, setFlightRows, flightRows)} />
-                    <Input className={gridInputClass} value={row.dep} onChange={(e) => handleInputChange(i, "dep", e.target.value, setFlightRows, flightRows)} />
-                    <Input className={gridInputClass} value={row.arr} onChange={(e) => handleInputChange(i, "arr", e.target.value, setFlightRows, flightRows)} />
-                    <Input type="time" className={gridInputClass + " [color-scheme:dark] px-1"} value={row.depT} onChange={(e) => handleInputChange(i, "depT", e.target.value, setFlightRows, flightRows)} />
-                    <Input type="time" className={gridInputClass + " [color-scheme:dark] px-1"} value={row.arrT} onChange={(e) => handleInputChange(i, "arrT", e.target.value, setFlightRows, flightRows)} />
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_1fr_0.8fr_0.8fr_0.7fr_0.7fr_1fr_1fr_0.7fr_40px] border-b border-slate-800/50 last:border-0"
+                  >
+                    <Input
+                      type="date"
+                      className={gridInputClass + " [color-scheme:dark]"}
+                      value={row.date}
+                      onChange={(e) => handleInputChange(i, "date", e.target.value, setFlightRows, flightRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.airline}
+                      onChange={(e) => handleInputChange(i, "airline", e.target.value, setFlightRows, flightRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.dep}
+                      onChange={(e) => handleInputChange(i, "dep", e.target.value, setFlightRows, flightRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.arr}
+                      onChange={(e) => handleInputChange(i, "arr", e.target.value, setFlightRows, flightRows)}
+                    />
+                    <Input
+                      type="time"
+                      className={gridInputClass + " [color-scheme:dark] px-1"}
+                      value={row.depT}
+                      onChange={(e) => handleInputChange(i, "depT", e.target.value, setFlightRows, flightRows)}
+                    />
+                    <Input
+                      type="time"
+                      className={gridInputClass + " [color-scheme:dark] px-1"}
+                      value={row.arrT}
+                      onChange={(e) => handleInputChange(i, "arrT", e.target.value, setFlightRows, flightRows)}
+                    />
                     <Input className={gridInputClass} value={row.ref} onChange={(e) => handleFlightRefChange(i, e.target.value)} />
-                    <Input className={gridInputClass} value={row.supplier} onChange={(e) => handleInputChange(i, "supplier", e.target.value, setFlightRows, flightRows)} />
-                    <Input className={gridInputClass + " border-r-0"} value={row.baggage} onChange={(e) => handleInputChange(i, "baggage", e.target.value, setFlightRows, flightRows)} />
+                    <Input
+                      className={gridInputClass}
+                      value={row.supplier}
+                      onChange={(e) => handleInputChange(i, "supplier", e.target.value, setFlightRows, flightRows)}
+                    />
+                    <Input
+                      className={gridInputClass + " border-r-0"}
+                      value={row.baggage}
+                      onChange={(e) => handleInputChange(i, "baggage", e.target.value, setFlightRows, flightRows)}
+                    />
                     <div className="flex items-center justify-center bg-slate-950 border-l border-slate-800">
-                      <Trash2 size={13} className="text-slate-600 hover:text-red-500 cursor-pointer" onClick={() => deleteRow(i, setFlightRows)} />
+                      <Trash2
+                        size={13}
+                        className="text-slate-600 hover:text-red-500 cursor-pointer"
+                        onClick={() => deleteRow(i, setFlightRows)}
+                      />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Hotel + Transport + Other Services === SAME as your invoice code (kept) */}
-            {/* (I’m not trimming anything here; just keep the same blocks you already have below) */}
 
             {/* Hotel */}
             <div className="space-y-2">
@@ -534,18 +628,63 @@ export default function CreateInvoiceDialog({
                 </div>
 
                 {hotelRows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_1fr_0.8fr_0.7fr_40px] border-b border-slate-800/50 last:border-0">
-                    <Input className={gridInputClass} value={row.name} onChange={(e) => handleInputChange(i, "name", e.target.value, setHotelRows, hotelRows)} />
-                    <Input className={gridInputClass} value={row.meal} onChange={(e) => handleInputChange(i, "meal", e.target.value, setHotelRows, hotelRows)} />
-                    <Input className={gridInputClass} value={row.room} onChange={(e) => handleInputChange(i, "room", e.target.value, setHotelRows, hotelRows)} />
-                    <Input type="date" className={gridInputClass + " [color-scheme:dark]"} value={row.in} onChange={(e) => handleInputChange(i, "in", e.target.value, setHotelRows, hotelRows)} />
-                    <Input type="date" className={gridInputClass + " [color-scheme:dark]"} value={row.out} onChange={(e) => handleInputChange(i, "out", e.target.value, setHotelRows, hotelRows)} />
-                    <Input className={gridInputClass} value={row.ref} onChange={(e) => handleInputChange(i, "ref", e.target.value, setHotelRows, hotelRows)} />
-                    <Input className={gridInputClass} value={row.supplier} onChange={(e) => handleInputChange(i, "supplier", e.target.value, setHotelRows, hotelRows)} />
-                    <Input className={gridInputClass} value={row.price} onChange={(e) => handleInputChange(i, "price", e.target.value, setHotelRows, hotelRows)} />
-                    <Input className={gridInputClass + " border-r-0"} value={row.guests} onChange={(e) => handleInputChange(i, "guests", e.target.value, setHotelRows, hotelRows)} />
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr_1fr_1fr_0.8fr_0.7fr_40px] border-b border-slate-800/50 last:border-0"
+                  >
+                    <Input
+                      className={gridInputClass}
+                      value={row.name}
+                      onChange={(e) => handleInputChange(i, "name", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.meal}
+                      onChange={(e) => handleInputChange(i, "meal", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.room}
+                      onChange={(e) => handleInputChange(i, "room", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      type="date"
+                      className={gridInputClass + " [color-scheme:dark]"}
+                      value={row.in}
+                      onChange={(e) => handleInputChange(i, "in", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      type="date"
+                      className={gridInputClass + " [color-scheme:dark]"}
+                      value={row.out}
+                      onChange={(e) => handleInputChange(i, "out", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.ref}
+                      onChange={(e) => handleInputChange(i, "ref", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.supplier}
+                      onChange={(e) => handleInputChange(i, "supplier", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.price}
+                      onChange={(e) => handleInputChange(i, "price", e.target.value, setHotelRows, hotelRows)}
+                    />
+                    <Input
+                      className={gridInputClass + " border-r-0"}
+                      value={row.guests}
+                      onChange={(e) => handleInputChange(i, "guests", e.target.value, setHotelRows, hotelRows)}
+                    />
                     <div className="flex items-center justify-center bg-slate-950 border-l border-slate-800">
-                      <Trash2 size={13} className="text-slate-600 hover:text-red-500 cursor-pointer" onClick={() => deleteRow(i, setHotelRows)} />
+                      <Trash2
+                        size={13}
+                        className="text-slate-600 hover:text-red-500 cursor-pointer"
+                        onClick={() => deleteRow(i, setHotelRows)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -577,17 +716,57 @@ export default function CreateInvoiceDialog({
                 </div>
 
                 {transportRows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_1fr_1.2fr_1.2fr_1fr_1fr_0.5fr_0.8fr_40px] border-b border-slate-800/50 last:border-0">
-                    <Input type="date" className={gridInputClass + " [color-scheme:dark]"} value={row.date} onChange={(e) => handleInputChange(i, "date", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass} value={row.vehicle} onChange={(e) => handleInputChange(i, "vehicle", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass} value={row.pickup} onChange={(e) => handleInputChange(i, "pickup", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass} value={row.dropoff} onChange={(e) => handleInputChange(i, "dropoff", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass} value={row.contact} onChange={(e) => handleInputChange(i, "contact", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass} value={row.supplier} onChange={(e) => handleInputChange(i, "supplier", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass} value={row.pax} onChange={(e) => handleInputChange(i, "pax", e.target.value, setTransportRows, transportRows)} />
-                    <Input className={gridInputClass + " border-r-0"} value={row.cost} onChange={(e) => handleInputChange(i, "cost", e.target.value, setTransportRows, transportRows)} />
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_1fr_1.2fr_1.2fr_1fr_1fr_0.5fr_0.8fr_40px] border-b border-slate-800/50 last:border-0"
+                  >
+                    <Input
+                      type="date"
+                      className={gridInputClass + " [color-scheme:dark]"}
+                      value={row.date}
+                      onChange={(e) => handleInputChange(i, "date", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.vehicle}
+                      onChange={(e) => handleInputChange(i, "vehicle", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.pickup}
+                      onChange={(e) => handleInputChange(i, "pickup", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.dropoff}
+                      onChange={(e) => handleInputChange(i, "dropoff", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.contact}
+                      onChange={(e) => handleInputChange(i, "contact", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.supplier}
+                      onChange={(e) => handleInputChange(i, "supplier", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass}
+                      value={row.pax}
+                      onChange={(e) => handleInputChange(i, "pax", e.target.value, setTransportRows, transportRows)}
+                    />
+                    <Input
+                      className={gridInputClass + " border-r-0"}
+                      value={row.cost}
+                      onChange={(e) => handleInputChange(i, "cost", e.target.value, setTransportRows, transportRows)}
+                    />
                     <div className="flex items-center justify-center bg-slate-950 border-l border-slate-800">
-                      <Trash2 size={13} className="text-slate-600 hover:text-red-500 cursor-pointer" onClick={() => deleteRow(i, setTransportRows)} />
+                      <Trash2
+                        size={13}
+                        className="text-slate-600 hover:text-red-500 cursor-pointer"
+                        onClick={() => deleteRow(i, setTransportRows)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -612,13 +791,23 @@ export default function CreateInvoiceDialog({
               </div>
               <div className="col-span-4 flex flex-col justify-center gap-4 pl-4 border-l border-slate-800">
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="visa" checked={formData.visa_required} onCheckedChange={(v) => setFormData({ ...formData, visa_required: !!v })} className="border-slate-600" />
+                  <Checkbox
+                    id="visa"
+                    checked={formData.visa_required}
+                    onCheckedChange={(v) => setFormData({ ...formData, visa_required: !!v })}
+                    className="border-slate-600"
+                  />
                   <label htmlFor="visa" className="text-xs font-bold text-slate-300 cursor-pointer">
                     VISA REQUIRED
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Checkbox id="ziarat" checked={formData.ziarat_required} onCheckedChange={(v) => setFormData({ ...formData, ziarat_required: !!v })} className="border-slate-600" />
+                  <Checkbox
+                    id="ziarat"
+                    checked={formData.ziarat_required}
+                    onCheckedChange={(v) => setFormData({ ...formData, ziarat_required: !!v })}
+                    className="border-slate-600"
+                  />
                   <label htmlFor="ziarat" className="text-xs font-bold text-slate-300 cursor-pointer">
                     ZIARAT INCLUDED
                   </label>
@@ -627,7 +816,7 @@ export default function CreateInvoiceDialog({
             </div>
           </div>
 
-          {/* ✅ FINANCIAL SUMMARY (Booking wala exactly, invoice me) */}
+          {/* FINANCIAL SUMMARY */}
           <div className="grid grid-cols-12 gap-5 pt-4 border-t border-slate-800/50">
             <div className="col-span-4 p-5 bg-slate-900/40 border border-slate-800 rounded-2xl space-y-4 shadow-xl border-l-4 border-l-orange-500">
               <div className="flex items-center gap-2 text-orange-500 font-bold text-[11px] uppercase tracking-widest">
@@ -637,7 +826,10 @@ export default function CreateInvoiceDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[9px] text-slate-500 uppercase font-bold">Currency</Label>
-                  <Select value={formData.currency} onValueChange={(v) => setFormData({ ...formData, currency: v as "USD" | "CAD" })}>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(v) => setFormData({ ...formData, currency: v as "USD" | "CAD" })}
+                  >
                     <SelectTrigger className="h-9 bg-slate-950 border-slate-800 text-xs">
                       <SelectValue />
                     </SelectTrigger>
@@ -651,7 +843,10 @@ export default function CreateInvoiceDialog({
                 <div className="space-y-1">
                   <Label className="text-[9px] text-slate-500 uppercase font-bold">Stripe Link</Label>
                   <div className="flex items-center h-9 gap-2 pl-2 bg-slate-950 rounded border border-slate-800">
-                    <Checkbox checked={formData.generate_stripe_link} onCheckedChange={(v) => setFormData({ ...formData, generate_stripe_link: !!v })} />
+                    <Checkbox
+                      checked={formData.generate_stripe_link}
+                      onCheckedChange={(v) => setFormData({ ...formData, generate_stripe_link: !!v })}
+                    />
                     <span className="text-[10px] font-bold text-slate-400">AUTO GEN</span>
                   </div>
                 </div>
@@ -713,7 +908,6 @@ export default function CreateInvoiceDialog({
                   <SelectContent className="bg-slate-900 text-white border-slate-700">
                     <SelectItem value="Stripe">Stripe</SelectItem>
                     <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                    {/* <SelectItem value="Cash">Cash</SelectItem> */}
                   </SelectContent>
                 </Select>
               </div>
@@ -747,14 +941,20 @@ export default function CreateInvoiceDialog({
 
             <div className="col-span-3 p-5 bg-slate-900/40 border border-slate-800 rounded-2xl shadow-xl">
               <Label className="text-[9px] text-slate-500 uppercase font-bold mb-2 block">Internal Agency Notes</Label>
-              <Textarea placeholder="Invoice notes..." className="h-[74px] bg-slate-950 border-slate-800 text-[10px] resize-none text-white" />
+              <Textarea
+                placeholder="Invoice notes..."
+                className="h-[74px] bg-slate-950 border-slate-800 text-[10px] resize-none text-white"
+              />
             </div>
           </div>
         </div>
 
         {/* FOOTER ACTIONS */}
         <div className="flex-none p-4 bg-slate-950 border-t border-slate-800 flex justify-end items-center gap-6 px-10">
-          <button onClick={() => setOpen(false)} className="text-slate-500 hover:text-white uppercase text-[10px] font-bold transition-colors">
+          <button
+            onClick={() => setOpen(false)}
+            className="text-slate-500 hover:text-white uppercase text-[10px] font-bold transition-colors"
+          >
             Discard Changes
           </button>
           <Button
