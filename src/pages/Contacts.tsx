@@ -1,19 +1,46 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Users } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, Upload, Eye, Trash2, MessageCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CreateContactDialog } from "@/components/CreateContactDialog";
-import { useToast } from "@/components/ui/use-toast";
-import { format } from "date-fns";
+
+interface Contact {
+  id: number;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string;
+  source: string;
+  status: string;
+  created_at: string;
+}
 
 export default function Contacts() {
-  const [contacts, setContacts] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [filterSource, setFilterSource] = useState("");
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // ✅ PAGINATION STATE
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   useEffect(() => {
     fetchContacts();
@@ -21,113 +48,264 @@ export default function Contacts() {
 
   const fetchContacts = async () => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      // ✅ Supabase ki jagah ab aapka apna backend call hoga
-      const response = await fetch("http://localhost:5000/api/contacts", {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      if (!response.ok) throw new Error("Database se rabta nahi ho saka");
-
-      const resData = await response.json();
-      setContacts(Array.isArray(resData) ? resData : (resData.data || []));
-    } catch (error: any) {
-      // ⚠️ Agar backend par abhi table nahi hai, toh empty array set karein taake error hide ho jaye
-      setContacts([]);
-      console.log("Error logic: ", error.message);
+      const res = await fetch("http://localhost:5000/api/contacts");
+      const data = await res.json();
+      setContacts(data);
+    } catch (err) {
+      console.log("Error loading contacts", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredContacts = (contacts || []).filter((contact) =>
-    `${contact.first_name} ${contact.last_name} ${contact.email}`.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleDelete = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this contact?")) return;
+
+    await fetch(`http://localhost:5000/api/contacts/${id}`, {
+      method: "DELETE",
+    });
+
+    fetchContacts();
+  };
+
+  /* ================= CSV UPLOAD ================= */
+
+  const handleCSVUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("http://localhost:5000/api/contacts/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert(
+          `CSV Uploaded Successfully ✅\nInserted: ${
+            data.inserted || 0
+          }\nSkipped: ${data.skipped || 0}`
+        );
+        fetchContacts();
+      } else {
+        alert("Upload Failed ❌");
+      }
+    } catch (err) {
+      alert("Server Error ❌");
+    }
+
+    e.target.value = "";
+  };
+
+  /* ================= FILTER + SEARCH ================= */
+
+  const filteredContacts = contacts
+    .filter((c) =>
+      `${c.first_name} ${c.last_name} ${c.phone} ${c.email}`
+        .toLowerCase()
+        .includes(search.toLowerCase())
+    )
+    .filter((c) => (filterSource ? c.source === filterSource : true));
+
+  /* ================= PAGINATION LOGIC ================= */
+
+  const indexOfLastRecord = currentPage * recordsPerPage;
+  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+
+  const currentRecords = filteredContacts.slice(
+    indexOfFirstRecord,
+    indexOfLastRecord
   );
 
-  const segments = [
-    { name: "All Contacts", count: contacts.length, color: "bg-blue-500" },
-    { name: "Active", count: contacts.filter(c => c.status === "active").length, color: "bg-green-500" },
-    { name: "Inactive", count: contacts.filter(c => c.status === "inactive").length, color: "bg-gray-500" },
-  ];
+  const totalPages = Math.ceil(filteredContacts.length / recordsPerPage);
 
-  if (loading) return <div className="p-8 text-white">Loading contacts database...</div>;
+  if (loading) return <div className="p-10 text-white">Loading...</div>;
 
   return (
-    <div className="space-y-6 p-8 bg-slate-950 min-h-screen text-white">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Contacts</h1>
-          <p className="text-slate-400">Manage your customer database from MySQL</p>
-        </div>
+    <div className="min-h-screen bg-slate-950 text-white p-8 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Contacts</h1>
         <CreateContactDialog onContactCreated={fetchContacts} />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {segments.map((segment, index) => (
-          <Card key={index} className="bg-slate-900 border-slate-800 text-white">
-            <CardContent className="p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">{segment.name}</p>
-                  <h3 className="text-2xl font-bold mt-2">{segment.count}</h3>
-                </div>
-                <div className={`h-12 w-12 rounded-lg ${segment.color}/20 flex items-center justify-center`}>
-                  <Users className={`h-6 w-6 ${segment.color.replace('bg-', 'text-')}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Filters */}
+      <div className="flex gap-4 items-center">
+        <div className="relative w-72">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search..."
+            className="pl-10 bg-slate-900 border-slate-700"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+
+        <select
+          className="bg-slate-900 border border-slate-700 px-3 py-2"
+          onChange={(e) => {
+            setFilterSource(e.target.value);
+            setCurrentPage(1);
+          }}
+        >
+          <option value="">All</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="webchat">Web Chat</option>
+          <option value="manual">Manual</option>
+          <option value="csv">CSV</option>
+        </select>
+
+        <label
+          htmlFor="csvInput"
+          className="flex items-center gap-2 cursor-pointer bg-slate-800 px-4 py-2 rounded"
+        >
+          <Upload className="h-4 w-4" />
+          Upload CSV
+        </label>
+
+        <input
+          id="csvInput"
+          type="file"
+          accept=".csv"
+          style={{ display: "none" }}
+          onChange={handleCSVUpload}
+        />
       </div>
 
-      <Card className="bg-slate-900 border-slate-800 text-white">
+      {/* Table */}
+      <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle>Contact List</CardTitle>
-          <CardDescription className="text-slate-400">Database synchronization active</CardDescription>
+          <CardTitle>
+            All Contacts ({filteredContacts.length})
+          </CardTitle>
         </CardHeader>
+
         <CardContent>
-          <div className="mb-6 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Search contacts..." 
-              className="pl-10 bg-slate-950 border-slate-700 text-white"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="rounded-lg border border-slate-800 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-slate-800/50">
-                <TableRow className="border-slate-800">
-                  <TableHead className="text-slate-300">Name</TableHead>
-                  <TableHead className="text-slate-300">Email</TableHead>
-                  <TableHead className="text-slate-300">Status</TableHead>
-                  <TableHead className="text-right text-slate-300">Actions</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {currentRecords.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell>
+                    {c.first_name} {c.last_name}
+                  </TableCell>
+                  <TableCell>{c.phone}</TableCell>
+                  <TableCell>{c.email}</TableCell>
+                  <TableCell>
+                    <Badge className="bg-blue-600">{c.source}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className={
+                        c.status === "active"
+                          ? "bg-green-600"
+                          : "bg-gray-600"
+                      }
+                    >
+                      {c.status}
+                    </Badge>
+                  </TableCell>
+
+                  <TableCell className="flex gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setSelectedContact(c)}
+                    >
+                      <Eye className="h-4 w-4 text-blue-400" />
+                    </Button>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() =>
+                        window.open(
+                          `https://wa.me/${c.phone.replace(/\D/g, "")}`,
+                          "_blank"
+                        )
+                      }
+                    >
+                      <MessageCircle className="h-4 w-4 text-green-400" />
+                    </Button>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleDelete(c.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-400" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredContacts.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-500">No contacts found in database.</TableCell></TableRow>
-                ) : (
-                  filteredContacts.map((contact) => (
-                    <TableRow key={contact.id} className="border-slate-800">
-                      <TableCell className="font-medium">{contact.first_name} {contact.last_name}</TableCell>
-                      <TableCell>{contact.email || "-"}</TableCell>
-                      <TableCell>
-                        <Badge className={contact.status === "active" ? "bg-green-500/20 text-green-400" : "bg-slate-700"}>
-                          {contact.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right"><Button variant="ghost" size="sm" className="text-blue-400">Edit</Button></TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+            </TableBody>
+          </Table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-6">
+              <Button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(currentPage - 1)}
+              >
+                Previous
+              </Button>
+
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <Button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(currentPage + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Modal */}
+      {selectedContact && (
+        <Dialog open={true} onOpenChange={() => setSelectedContact(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Contact Details</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <p>
+                <strong>Name:</strong> {selectedContact.first_name}{" "}
+                {selectedContact.last_name}
+              </p>
+              <p><strong>Phone:</strong> {selectedContact.phone}</p>
+              <p><strong>Email:</strong> {selectedContact.email}</p>
+              <p><strong>Source:</strong> {selectedContact.source}</p>
+              <p><strong>Status:</strong> {selectedContact.status}</p>
+              <p><strong>Created:</strong> {selectedContact.created_at}</p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

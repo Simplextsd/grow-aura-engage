@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus } from "lucide-react";
 
@@ -24,9 +28,7 @@ export function CreateContactDialog({ onContactCreated }: CreateContactDialogPro
     email: "",
     phone: "",
     company: "",
-    title: "",
     status: "active",
-    source: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -34,17 +36,21 @@ export function CreateContactDialog({ onContactCreated }: CreateContactDialogPro
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabase.from("contacts").insert([
-        {
-          ...formData,
-          user_id: user.id,
+      const response = await fetch("http://localhost:5000/api/contacts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          // Agar JWT use kar rahe ho to uncomment karo:
+          // "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-      ]);
+        body: JSON.stringify(formData),
+      });
 
-      if (error) throw error;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Something went wrong");
+      }
 
       toast({
         title: "Success",
@@ -58,11 +64,11 @@ export function CreateContactDialog({ onContactCreated }: CreateContactDialogPro
         email: "",
         phone: "",
         company: "",
-        title: "",
         status: "active",
-        source: "",
       });
+
       onContactCreated?.();
+
     } catch (error: any) {
       toast({
         title: "Error",
@@ -82,104 +88,103 @@ export function CreateContactDialog({ onContactCreated }: CreateContactDialogPro
           Add Contact
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+
+      <DialogContent className="max-w-xl">
         <DialogHeader>
           <DialogTitle>Create New Contact</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_name">First Name *</Label>
+            <div>
+              <Label>First Name *</Label>
               <Input
-                id="first_name"
                 required
                 value={formData.first_name}
-                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, first_name: e.target.value })
+                }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Last Name *</Label>
+
+            <div>
+              <Label>Last Name *</Label>
               <Input
-                id="last_name"
                 required
                 value={formData.last_name}
-                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, last_name: e.target.value })
+                }
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+            <div>
+              <Label>Email</Label>
               <Input
-                id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+
+            <div>
+              <Label>Phone *</Label>
               <Input
-                id="phone"
-                type="tel"
+                required
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input
-                id="company"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="title">Job Title</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              />
-            </div>
+          <div>
+            <Label>Company</Label>
+            <Input
+              value={formData.company}
+              onChange={(e) =>
+                setFormData({ ...formData, company: e.target.value })
+              }
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="source">Source</Label>
-              <Input
-                id="source"
-                placeholder="Website, Referral, etc."
-                value={formData.source}
-                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-              />
-            </div>
+          <div>
+            <Label>Status</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) =>
+                setFormData({ ...formData, status: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create Contact"}
             </Button>
           </div>
+
         </form>
       </DialogContent>
     </Dialog>
